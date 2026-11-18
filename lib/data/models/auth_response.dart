@@ -15,7 +15,7 @@ class AuthResponse {
     final data = (json['data'] ?? json) as Map<String, dynamic>;
     return AuthResponse(
       user: User.fromJson(data['user'] as Map<String, dynamic>),
-      token: data['token'] as String,
+      token: (data['access_token'] ?? data['token']) as String,
     );
   }
 }
