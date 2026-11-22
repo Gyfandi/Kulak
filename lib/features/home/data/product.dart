@@ -7,6 +7,7 @@ class Product {
     required this.sellerName,
     required this.location,
     this.imageUrl,
+    this.sellerPhone,
   });
 
   final int id;
@@ -16,9 +17,13 @@ class Product {
   final String sellerName;
   final String location;
   final String? imageUrl;
+  final String? sellerPhone;
 
   factory Product.fromJson(Map<String, dynamic> json) {
     final seller = json['seller'];
+    final phoneRaw =
+        (seller is Map<String, dynamic> ? seller['phone'] : null) ??
+            json['seller_phone'];
     return Product(
       id: _asInt(json['id']),
       name: json['name'] as String? ?? json['title'] as String? ?? 'Barang',
@@ -29,6 +34,7 @@ class Product {
           : json['seller_name'] as String? ?? 'Penjual',
       location: json['location'] as String? ?? json['city'] as String? ?? 'Lokasi tidak tersedia',
       imageUrl: json['image_url'] as String? ?? json['photo_url'] as String?,
+      sellerPhone: phoneRaw?.toString(),
     );
   }
 
@@ -40,6 +46,7 @@ class Product {
         'seller_name': sellerName,
         'location': location,
         'image_url': imageUrl,
+        'seller_phone': sellerPhone,
       };
 
   static int _asInt(Object? value) =>

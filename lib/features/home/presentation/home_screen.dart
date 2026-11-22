@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/theme/app_theme.dart';
+import '../../../data/api/api_exception.dart';
 import '../data/catalog_repository.dart';
 import '../data/catalog_service.dart';
 import '../data/product.dart';
