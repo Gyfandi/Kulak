@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../data/api/api_exception.dart';
+import '../../favorites/data/favorites_service.dart';
 import '../data/catalog_repository.dart';
 import '../data/catalog_service.dart';
 import '../data/product.dart';
+import '../data/seller_contact.dart';
 
 class ItemDetailScreen extends StatefulWidget {
   const ItemDetailScreen({super.key, required this.id});
@@ -43,21 +46,190 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Detail barang')),
-      body: FutureBuilder<Product>(
-        future: _productFuture,
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          if (snapshot.hasError) {
-            return _DetailError(error: snapshot.error, onRetry: _reload);
-          }
+    return FutureBuilder<Product>(
+      future: _productFuture,
+      builder: (context, snapshot) {
+        final product = snapshot.data;
+        return Scaffold(
+          appBar: AppBar(
+            title: const Text('Detail barang'),
+            actions: product == null
+                ? null
+                : [
+                    _FavoriteButton(product: product),
+                    _MoreMenu(product: product),
+                  ],
+          ),
+          body: _buildBody(snapshot),
+          bottomNavigationBar:
+              product == null ? null : _ContactBar(product: product),
+        );
+      },
+    );
+  }
 
-          final product = snapshot.data!;
-          return _ProductDetails(product: product);
-        },
+  Widget _buildBody(AsyncSnapshot<Product> snapshot) {
+    if (snapshot.connectionState == ConnectionState.waiting) {
+      return const Center(child: CircularProgressIndicator());
+    }
+    if (snapshot.hasError) {
+      return _DetailError(error: snapshot.error, onRetry: _reload);
+    }
+    return _ProductDetails(product: snapshot.data!);
+  }
+}
+
+/// Tombol hati: simpan/hapus barang dari favorit.
+class _FavoriteButton extends StatefulWidget {
+  const _FavoriteButton({required this.product});
+
+  final Product product;
+
+  @override
+  State<_FavoriteButton> createState() => _FavoriteButtonState();
+}
+
+class _FavoriteButtonState extends State<_FavoriteButton> {
+  @override
+  void initState() {
+    super.initState();
+    // Muat daftar favorit supaya status hati sesuai; kegagalan ditangani saat ditekan.
+    favoritesRepository.ensureLoaded().catchError((Object _) {});
+  }
+
+  Future<void> _toggle() async {
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      final added = await favoritesRepository.toggle(widget.product);
+      messenger
+        ..hideCurrentSnackBar()
+        ..showSnackBar(
+          SnackBar(
+            content: Text(
+              added ? 'Ditambahkan ke favorit' : 'Dihapus dari favorit',
+            ),
+          ),
+        );
+    } catch (_) {
+      messenger.showSnackBar(
+        const SnackBar(content: Text('Gagal menyimpan favorit. Coba lagi.')),
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return ListenableBuilder(
+      listenable: favoritesRepository,
+      builder: (context, _) {
+        final isFavorite = favoritesRepository.isFavorite(widget.product.id);
+        return IconButton(
+          tooltip: isFavorite ? 'Hapus dari favorit' : 'Tambah ke favorit',
+          onPressed: _toggle,
+          icon: Icon(
+            isFavorite ? Icons.favorite : Icons.favorite_border,
+            color: isFavorite ? Theme.of(context).colorScheme.error : null,
+          ),
+        );
+      },
+    );
+  }
+}
+
+/// Menu titik tiga: laporkan barang.
+class _MoreMenu extends StatelessWidget {
+  const _MoreMenu({required this.product});
+
+  final Product product;
+
+  @override
+  Widget build(BuildContext context) {
+    return PopupMenuButton<String>(
+      tooltip: 'Menu lainnya',
+      onSelected: (value) {
+        if (value == 'report') {
+          context.push('/report/${product.id}', extra: product.name);
+        }
+      },
+      itemBuilder: (context) => const [
+        PopupMenuItem(value: 'report', child: Text('Laporkan barang')),
+      ],
+    );
+  }
+}
+
+/// Bilah bawah: telepon dan WhatsApp ke penjual.
+class _ContactBar extends StatelessWidget {
+  const _ContactBar({required this.product});
+
+  final Product product;
+
+  Future<void> _open(BuildContext context, Uri uri, String failMessage) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final opened = await openExternal(uri);
+    if (opened) return;
+    messenger
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(content: Text(failMessage)));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final phone = normalizeIndonesianPhone(product.sellerPhone);
+    final message =
+        'Halo, saya tertarik dengan "${product.name}" di Kulak. Apakah masih tersedia?';
+
+    return Material(
+      color: Theme.of(context).colorScheme.surface,
+      elevation: 8,
+      child: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 12, 20, 12),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                phone == null
+                    ? 'Nomor penjual belum tersedia.'
+                    : 'Hubungi penjual',
+                style: Theme.of(context).textTheme.titleSmall,
+              ),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: phone == null
+                          ? null
+                          : () => _open(
+                                context,
+                                telUri(phone),
+                                'Tidak bisa membuka aplikasi telepon di perangkat ini.',
+                              ),
+                      icon: const Icon(Icons.call_outlined),
+                      label: const Text('Telepon'),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: FilledButton.icon(
+                      onPressed: phone == null
+                          ? null
+                          : () => _open(
+                                context,
+                                whatsappUri(phone, message),
+                                'WhatsApp tidak bisa dibuka di perangkat ini.',
+                              ),
+                      icon: const Icon(Icons.chat_outlined),
+                      label: const Text('WhatsApp'),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
