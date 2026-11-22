@@ -7,6 +7,7 @@ import '../../features/home/presentation/home_screen.dart';
 import '../../features/home/presentation/item_detail_screen.dart';
 import '../../features/notifications/presentation/notifications_screen.dart';
 import '../../features/profile/presentation/profile_screen.dart';
+import '../../features/report/presentation/report_screen.dart';
 import '../../features/sell/presentation/sell_screen.dart';
 import 'main_shell.dart';
 
@@ -55,6 +56,13 @@ final GoRouter appRouter = GoRouter(
       path: '/item/:id',
       builder: (context, state) =>
           ItemDetailScreen(id: state.pathParameters['id'] ?? ''),
+    ),
+    GoRoute(
+      path: '/report/:id',
+      builder: (context, state) => ReportScreen(
+        productId: state.pathParameters['id'] ?? '',
+        productName: state.extra is String ? state.extra as String : null,
+      ),
     ),
     GoRoute(
       path: '/sell',
