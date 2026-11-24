@@ -9,6 +9,7 @@ import '../../features/notifications/presentation/notifications_screen.dart';
 import '../../features/profile/presentation/profile_screen.dart';
 import '../../features/report/presentation/report_screen.dart';
 import '../../features/sell/presentation/sell_screen.dart';
+import '../../pages/beranda_demo_page.dart';
 import 'main_shell.dart';
 
 final GoRouter appRouter = GoRouter(
@@ -63,6 +64,10 @@ final GoRouter appRouter = GoRouter(
         productId: state.pathParameters['id'] ?? '',
         productName: state.extra is String ? state.extra as String : null,
       ),
+    ),
+    GoRoute(
+      path: '/demo',
+      builder: (context, state) => const BerandaDemoPage(),
     ),
     GoRoute(
       path: '/sell',
